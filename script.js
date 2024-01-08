@@ -6,13 +6,11 @@ function export_relatorio_combustiveis() {
 
   const id_pasta_anexo_temporario = PropertiesService.getScriptProperties().getProperty("id_pasta_anexo_temporario")
 
-  const assuntoAProcurar = 'RELAÇÃO DE COMBUSTÍVEL';
+  const assuntoAProcurar = 'RELATÓRIO MENSAL DE COMBUSTÍVEIS';
   const minhaPasta = DriveApp.getFolderById(id_pasta_anexo_temporario);
 
   // Procurar apenas uma thread com o assunto específico.
   const threads = GmailApp.search(`subject:"${assuntoAProcurar}"`, 0, 1);
-
-
 
   if (threads.length > 0 && threads[0].isUnread()) { // Se houver pelo menos uma thread encontrada e não foi lido.
 
@@ -62,6 +60,7 @@ function export_relatorio_combustiveis() {
       let spreadsheetId = id_plan_relatorio_combustiveis;
       let relacao_combustiveis = SpreadsheetApp.openById(spreadsheetId);
       let guiaRecebimento = relacao_combustiveis.getSheetByName('Dados');
+      let guiaResumo = relacao_combustiveis.getSheetByName('Resumo');
 
       let tipos_combustiveis = relacao_combustiveis.getSheetByName("Combustíveis");
 
@@ -71,6 +70,7 @@ function export_relatorio_combustiveis() {
       valores.slice(1).map(produto => { mapa[produto[0]] = produto[1] })
 
       let competencia = ""
+      let fullDate = ""
 
       // Transforma os dados filtrados para o formato desejado
       let dados_planilha = dados_filtrados.map(linha => {
@@ -86,6 +86,7 @@ function export_relatorio_combustiveis() {
 
           // Formata a competência como MM/AAAA
           competencia = mesFormatado + "/" + ano;
+          fullDate = new Date(mesFormatado + "/" + "01" + "/" + ano)
         }
 
         return [
@@ -108,6 +109,14 @@ function export_relatorio_combustiveis() {
           competencia
         ];
       });
+
+      // Verificar se a competencia já foi registrada alguma vez
+      let periodos_registrados = guiaRecebimento.getRange(guiaRecebimento.getLastRow(), 17).getValue()
+
+      if (new Date(periodos_registrados).toString() === new Date(fullDate).toString()) {
+        Logger.log("Período já foi registrado.")
+        return
+      }
 
       // Localiza a última linha com dados na guia 'Dados'
       let ultimaLinha = guiaRecebimento.getLastRow();
@@ -238,7 +247,7 @@ function export_relatorio_combustiveis() {
 
       const email_copia = PropertiesService.getScriptProperties().getProperty("email_copia");
 
-      GmailApp.createDraft(
+      GmailApp.sendEmail(
         email_para_envio,
         subject,
         "Your email doesn't support HTML.",
